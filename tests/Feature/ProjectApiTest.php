@@ -32,7 +32,7 @@ class ProjectApiTest extends TestCase
         ]);
     }
 
-    public function test_user_can_only_see_their_own_projects(): void
+    public function test_user_can_see_owned_and_member_projects_but_not_unrelated_projects(): void
     {
         $user = User::factory()->create();
         $anotherUser = User::factory()->create();
@@ -138,6 +138,10 @@ class ProjectApiTest extends TestCase
 
         $this->actingAs($other, 'sanctum')
             ->postJson("/api/projects/{$project->id}/members/{$newMember->id}")
+            ->assertForbidden();
+
+        $this->actingAs($other, 'sanctum')
+            ->deleteJson("/api/projects/{$project->id}/members/{$newMember->id}")
             ->assertForbidden();
     }
 

@@ -376,4 +376,44 @@ class TaskApiTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('data.assignee.id', $member->id);
     }
+
+    public function test_project_member_can_read_tasks_but_cannot_create_or_update_them(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $project = Project::create([
+            'name' => 'Team project',
+            'owner_id' => $owner->id,
+        ]);
+        $project->members()->attach($member->id);
+        $task = $project->tasks()->create([
+            'title' => 'Existing task',
+        ]);
+
+        $this->actingAs($member, 'sanctum')
+            ->getJson("/api/projects/{$project->id}/tasks")
+            ->assertOk()
+            ->assertJsonFragment(['title' => 'Existing task']);
+
+        $this->actingAs($member, 'sanctum')
+            ->postJson("/api/projects/{$project->id}/tasks", [
+                'title' => 'Unauthorized task',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($member, 'sanctum')
+            ->patchJson("/api/projects/{$project->id}/tasks/{$task->id}", [
+                'title' => 'Changed by member',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'title' => 'Existing task',
+        ]);
+        $this->assertDatabaseMissing('tasks', [
+            'project_id' => $project->id,
+            'title' => 'Unauthorized task',
+        ]);
+    }
 }

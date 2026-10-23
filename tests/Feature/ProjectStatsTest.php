@@ -70,4 +70,28 @@ class ProjectStatsTest extends TestCase
             ->getJson("/api/projects/{$project->id}/stats")
             ->assertForbidden();
     }
+
+    public function test_project_member_can_view_project_stats(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $project = Project::create([
+            'name' => 'Shared project',
+            'owner_id' => $owner->id,
+        ]);
+        $project->members()->attach($member->id);
+        $project->tasks()->create([
+            'title' => 'Shared task',
+            'status' => 'todo',
+        ]);
+
+        $this->actingAs($member, 'sanctum')
+            ->getJson("/api/projects/{$project->id}/stats")
+            ->assertOk()
+            ->assertJson([
+                'project_id' => $project->id,
+                'total' => 1,
+                'todo' => 1,
+            ]);
+    }
 }

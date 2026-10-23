@@ -100,4 +100,34 @@ class TaskCommentTest extends TestCase
             'body' => 'Unauthorized comment',
         ]);
     }
+
+    public function test_project_member_can_read_and_comment_on_project_tasks(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        [$project, $task] = $this->createProjectAndTask($owner);
+        $project->members()->attach($member->id);
+        $task->comments()->create([
+            'user_id' => $owner->id,
+            'body' => 'Owner comment',
+        ]);
+
+        $this->actingAs($member, 'sanctum')
+            ->getJson("/api/projects/{$project->id}/tasks/{$task->id}/comments")
+            ->assertOk()
+            ->assertJsonPath('data.0.body', 'Owner comment');
+
+        $this->actingAs($member, 'sanctum')
+            ->postJson("/api/projects/{$project->id}/tasks/{$task->id}/comments", [
+                'body' => 'Member comment',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.author.id', $member->id);
+
+        $this->assertDatabaseHas('comments', [
+            'task_id' => $task->id,
+            'user_id' => $member->id,
+            'body' => 'Member comment',
+        ]);
+    }
 }
