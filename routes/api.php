@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\ProjectStatsController;
 use App\Http\Controllers\Api\TaskCommentController;
+use App\Http\Controllers\Api\ProjectMemberController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -19,6 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::apiResource('projects', ProjectController::class);
+    Route::post('/projects/{project}/members/{user}', [ProjectMemberController::class, 'store']);
+    Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
 
     Route::apiResource('projects.tasks', TaskController::class)
         ->scoped(['task' => 'id',]);

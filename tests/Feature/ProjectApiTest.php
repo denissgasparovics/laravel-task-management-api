@@ -98,4 +98,59 @@ class ProjectApiTest extends TestCase
             'owner_id' => $owner->id,
         ]);
     }
+
+    public function test_owner_can_add_and_remove_project_members(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $project = Project::create(['name' => 'Team project', 'owner_id' => $owner->id]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->postJson("/api/projects/{$project->id}/members/{$member->id}")
+            ->assertCreated()
+            ->assertJsonPath('member.id', $member->id);
+
+        $this->assertDatabaseHas('project_user', [
+            'project_id' => $project->id,
+            'user_id' => $member->id,
+        ]);
+
+        $this->actingAs($member, 'sanctum')
+            ->getJson("/api/projects/{$project->id}")
+            ->assertOk();
+
+        $this->actingAs($owner, 'sanctum')
+            ->deleteJson("/api/projects/{$project->id}/members/{$member->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('project_user', [
+            'project_id' => $project->id,
+            'user_id' => $member->id,
+        ]);
+    }
+
+    public function test_non_owner_cannot_manage_project_members(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $newMember = User::factory()->create();
+        $project = Project::create(['name' => 'Private project', 'owner_id' => $owner->id]);
+
+        $this->actingAs($other, 'sanctum')
+            ->postJson("/api/projects/{$project->id}/members/{$newMember->id}")
+            ->assertForbidden();
+    }
+
+    public function test_members_can_see_project_in_their_project_list(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $project = Project::create(['name' => 'Shared project', 'owner_id' => $owner->id]);
+        $project->members()->attach($member->id);
+
+        $this->actingAs($member, 'sanctum')
+            ->getJson('/api/projects')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Shared project']);
+    }
 }

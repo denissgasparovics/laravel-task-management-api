@@ -18,8 +18,9 @@ class ProjectController extends Controller
     {
         Gate::authorize('viewAny', Project::class);
 
-        $projects = $request->user()
-            ->projects()
+        $projects = Project::query()
+            ->where('owner_id', $request->user()->id)
+            ->orWhereHas('members', fn ($query) => $query->whereKey($request->user()->id))
             ->latest()
             ->paginate(15);
 
